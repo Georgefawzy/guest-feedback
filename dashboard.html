@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Feedback Dashboard</title>
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef6f7;--surface:#fff;--ink:#3a2c1b;--muted:#6b5d4d;--line:#cfe0e3;--accent:#544028;--accent-ink:#fff;--star:#60acb8;--off:#dbe8ea;--bad:#b3261e;--badbg:#fbeae8;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#1f1812;--surface:#2b2218;--ink:#f3ece3;--muted:#bfb1a0;--line:#4a3d2e;--accent:#60acb8;--accent-ink:#1f1812;--star:#7cc3ce;--off:#43372a;--bad:#ff8a80;--badbg:#3a1f1e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.6 Cairo,system-ui,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:16px 16px 48px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0 16px}
+.logo{height:76px;width:auto;background:#fff;border-radius:12px;padding:6px 12px;display:block}
+body{border-top:6px solid #60acb8}
+h1{font-size:26px;font-weight:800;margin:0 0 16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+h2{font-size:18px;font-weight:800;margin:0 0 12px}
+input,button{font:inherit}
+input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);direction:ltr;text-align:center;letter-spacing:.1em}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer}
+.ghost{background:none;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:4px 14px;cursor:pointer}
+.ghost.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.err{color:var(--bad);min-height:1.5em;font-weight:600;margin:8px 0}
+.seg{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.frow{display:flex;gap:12px;flex-wrap:wrap}
+.frow label{flex:1;min-width:140px;font-size:14px;color:var(--muted)}
+.frow input,.frow select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;letter-spacing:0;text-align:start;direction:ltr}
+.frow select{direction:rtl}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.kpi b{display:block;font-size:34px;line-height:1.2;font-weight:800}
+.kpi span{color:var(--muted);font-size:14px}
+.kpi.bad b{color:var(--bad)}
+.bar{display:grid;grid-template-columns:110px 1fr 40px;gap:10px;align-items:center;margin-bottom:8px}
+.track{background:var(--off);border-radius:99px;height:10px;overflow:hidden;direction:ltr}
+.fill{height:100%;background:var(--star);border-radius:99px}
+.bar em{font-style:normal;font-weight:600;text-align:end}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 6px;text-align:start;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:14px}
+.scroll{overflow-x:auto}
+.item{padding:12px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border:0}
+.item.low{background:var(--badbg);margin:0 -12px;padding:12px;border-radius:10px;border:0;margin-bottom:6px}
+.meta{color:var(--muted);font-size:14px}
+.st{color:var(--star);letter-spacing:2px;direction:ltr;display:inline-block}
+.empty{color:var(--muted)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><img class="logo" src="logo.png" alt="Caribou Coffee"><button class="ghost" id="out" hidden>خروج</button></div>
+  <h1 id="h">لوحة التقييمات</h1>
+
+  <div class="card" id="login">
+    <h2>أدخل كود الفرع</h2>
+    <input id="pin" type="password" autocomplete="off" aria-label="كود الدخول">
+    <p class="err" id="err" role="alert"></p>
+    <button class="btn" id="go">دخول</button>
+  </div>
+
+  <div id="app" hidden>
+    <div class="card">
+      <div class="seg" id="range"></div>
+      <div class="frow">
+        <label>من <input type="date" id="from"></label>
+        <label>إلى <input type="date" id="to"></label>
+        <label id="brWrap" hidden>الفرع <select id="brSel"></select></label>
+      </div>
+    </div>
+    <div class="card"><div class="kpis" id="kpis"></div></div>
+    <div class="card"><h2>متوسط التقييم حسب البند</h2><div id="cats"></div></div>
+    <div class="card" id="brCard" hidden><h2>مقارنة الفروع</h2><div class="scroll"><table id="br"></table></div></div>
+    <div class="card"><h2>آخر الملاحظات</h2><div id="list"></div></div>
+  </div>
+</div>
+
+<script>
+const ENDPOINT = ""; // نفس رابط Apps Script /exec المستخدم في index.html
+
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const avg = (rows, k) => { const v = rows.map(r => +r[k]).filter(Boolean); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; };
+const fmt = n => n ? n.toFixed(1) : "—";
+const CATS = [["overall", "التقييم العام"], ["food", "الطعام والمشروبات"], ["service", "الخدمة"], ["clean", "النظافة"], ["speed", "سرعة التحضير"]];
+
+let DATA = null;
+
+async function load(pin) {
+  $("err").textContent = "";
+  $("go").disabled = true;
+  try {
+    const res = await fetch(ENDPOINT + "?pin=" + encodeURIComponent(pin));
+    const d = await res.json();
+    if (!d.ok) { $("err").textContent = "الكود غير صحيح."; localStorage.removeItem("gf_pin"); return; }
+    DATA = d; localStorage.setItem("gf_pin", pin);
+    $("login").hidden = true; $("app").hidden = false; $("out").hidden = false;
+    $("h").textContent = d.scope === "*" ? "لوحة التقييمات — كل الفروع" : "لوحة التقييمات — " + d.scope;
+    $("brWrap").hidden = d.scope !== "*";
+    const bs = $("brSel"); bs.replaceChildren(new Option("كل الفروع", ""));
+    [...new Set(d.rows.map(r => r.branch))].sort().forEach(x => bs.append(new Option(x, x)));
+    setRange(30);
+  } catch (e) {
+    $("err").textContent = ENDPOINT ? "تعذّر التحميل. حاول مرة أخرى." : "ضع رابط Apps Script في ENDPOINT أولًا.";
+  } finally { $("go").disabled = false; }
+}
+
+function draw() {
+  const fromT = $("from").value ? new Date($("from").value + "T00:00:00").getTime() : 0;
+  const toT = $("to").value ? new Date($("to").value + "T23:59:59").getTime() : Infinity;
+  const brF = $("brSel").value;
+  const rows = DATA.rows.filter(r => { const x = new Date(r.t).getTime(); return x >= fromT && x <= toT && (!brF || r.branch === brF); });
+
+  const kp = $("kpis"); kp.replaceChildren();
+  const low = rows.filter(r => r.overall && r.overall <= 2).length;
+  [["متوسط التقييم", fmt(avg(rows, "overall")), ""], ["عدد التقييمات", rows.length, ""], ["تقييمات منخفضة", low, low ? "bad" : ""]].forEach(([l, v, c]) => {
+    const k = el("div", "kpi " + c); k.append(el("b", "", v), el("span", "", l)); kp.append(k);
+  });
+
+  const cats = $("cats"); cats.replaceChildren();
+  CATS.forEach(([k, l]) => {
+    const a = avg(rows, k), r = el("div", "bar");
+    const t = el("div", "track"), f = el("div", "fill"); f.style.width = (a / 5 * 100) + "%"; t.append(f);
+    r.append(el("span", "", l), t, el("em", "", fmt(a))); cats.append(r);
+  });
+
+  $("brCard").hidden = DATA.scope !== "*";
+  if (DATA.scope === "*") {
+    const t = $("br"); t.replaceChildren();
+    const h = el("tr"); ["الفرع", "التقييمات", "المتوسط", "منخفضة"].forEach(x => h.append(el("th", "", x))); t.append(h);
+    [...new Set(rows.map(r => r.branch))].sort().map(b => {
+      const rs = rows.filter(r => r.branch === b); return { b, n: rs.length, a: avg(rs, "overall"), l: rs.filter(r => r.overall && r.overall <= 2).length };
+    }).sort((x, y) => y.a - x.a).forEach(o => {
+      const tr = el("tr"); [o.b, o.n, fmt(o.a), o.l].forEach(x => tr.append(el("td", "", x))); t.append(tr);
+    });
+  }
+
+  const list = $("list"); list.replaceChildren();
+  const items = rows.filter(r => r.comment || (r.overall && r.overall <= 2)).sort((a, b) => new Date(b.t) - new Date(a.t)).slice(0, 30);
+  if (!items.length) list.append(el("p", "empty", "مفيش ملاحظات في الفترة دي."));
+  items.forEach(r => {
+    const i = el("div", "item" + (r.overall <= 2 ? " low" : ""));
+    const st = el("span", "st", "★".repeat(r.overall) + "☆".repeat(5 - r.overall));
+    const m = el("div", "meta", new Date(r.t).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" }) + " • " + r.branch + " • " + r.visit);
+    i.append(st, m);
+    if (r.comment) i.append(el("div", "", r.comment));
+    const who = [r.name, r.contact].filter(Boolean).join(" • ");
+    if (who) i.append(el("div", "meta", "للتواصل: " + who));
+    list.append(i);
+  });
+}
+
+const ymd = d => new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+const marks = on => document.querySelectorAll("#range .ghost").forEach(x => x.classList.toggle("on", on !== null && +x.dataset.n === on));
+function setRange(n) {
+  const d = new Date();
+  $("to").value = ymd(d); $("from").value = ymd(new Date(d.getTime() - (n - 1) * 864e5));
+  marks(n); draw();
+}
+[["اليوم", 1], ["آخر 7 أيام", 7], ["آخر 30 يوم", 30], ["آخر 90 يوم", 90], ["آخر سنة", 365]].forEach(([l, n]) => {
+  const b = el("button", "ghost", l); b.dataset.n = n; b.onclick = () => setRange(n); $("range").append(b);
+});
+["from", "to"].forEach(i => $(i).addEventListener("change", () => { marks(null); draw(); }));
+$("brSel").addEventListener("change", draw);
+
+$("go").onclick = () => $("pin").value.trim() && load($("pin").value.trim());
+$("pin").addEventListener("keydown", e => { if (e.key === "Enter") $("go").click(); });
+$("out").onclick = () => { localStorage.removeItem("gf_pin"); location.reload(); };
+const saved = localStorage.getItem("gf_pin"); if (saved) load(saved);
+</script>
+</body>
+</html>
