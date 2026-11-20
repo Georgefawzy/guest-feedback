@@ -82,97 +82,219 @@ th{color:var(--muted);font-weight:600;font-size:14px}
 </div>
 
 <script>
-const ENDPOINT = "https://script.google.com/macros/s/AKfycbyyKYO5vdSEJCFGfpEzoiPAqAf8wFb2ljAOgGtXh4ODZyAbS0mNXsxQNMz72EOq_bCF/exec"; // نفس رابط Apps Script /exec المستخدم في index.html
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbyviq2Z8hP_kDr9Qayfy-0tt2aSaewcgrfHzKNMPKPjNuOuIAHwfVWx1LdC3ncIuA1H/exec";
 
 const $ = id => document.getElementById(id);
-const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-const avg = (rows, k) => { const v = rows.map(r => +r[k]).filter(Boolean); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; };
+const el = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+};
+const avg = (rows, k) => {
+  const v = rows.map(r => +r[k]).filter(Boolean);
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
+};
 const fmt = n => n ? n.toFixed(1) : "—";
-const CATS = [["overall", "التقييم العام"], ["food", "الطعام والمشروبات"], ["service", "الخدمة"], ["clean", "النظافة"], ["speed", "سرعة التحضير"]];
+const CATS = [
+  ["overall", "التقييم العام"],
+  ["food", "الطعام والمشروبات"],
+  ["service", "الخدمة"],
+  ["clean", "النظافة"],
+  ["speed", "سرعة التحضير"]
+];
 
 let DATA = null;
 
 async function load(pin) {
   $("err").textContent = "";
   $("go").disabled = true;
+
   try {
     const res = await fetch(ENDPOINT + "?pin=" + encodeURIComponent(pin));
     const d = await res.json();
-    if (!d.ok) { $("err").textContent = "الكود غير صحيح."; localStorage.removeItem("gf_pin"); return; }
-    DATA = d; localStorage.setItem("gf_pin", pin);
-    $("login").hidden = true; $("app").hidden = false; $("out").hidden = false;
-    $("h").textContent = d.scope === "*" ? "لوحة التقييمات — كل الفروع" : "لوحة التقييمات — " + d.scope;
+
+    if (!d.ok) {
+      $("err").textContent = "الكود غير صحيح.";
+      localStorage.removeItem("gf_pin");
+      return;
+    }
+
+    DATA = d;
+    localStorage.setItem("gf_pin", pin);
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("out").hidden = false;
+    $("h").textContent = d.scope === "*"
+      ? "لوحة التقييمات — كل الفروع"
+      : "لوحة التقييمات — " + d.scope;
+
     $("brWrap").hidden = d.scope !== "*";
-    const bs = $("brSel"); bs.replaceChildren(new Option("كل الفروع", ""));
-    [...new Set(d.rows.map(r => r.branch))].sort().forEach(x => bs.append(new Option(x, x)));
+    const bs = $("brSel");
+    bs.replaceChildren(new Option("كل الفروع", ""));
+    [...new Set(d.rows.map(r => r.branch))].sort()
+      .forEach(x => bs.append(new Option(x, x)));
+
     setRange(30);
   } catch (e) {
-    $("err").textContent = ENDPOINT ? "تعذّر التحميل. حاول مرة أخرى." : "ضع رابط Apps Script في ENDPOINT أولًا.";
-  } finally { $("go").disabled = false; }
+    $("err").textContent = "تعذّر التحميل. حاول مرة أخرى.";
+  } finally {
+    $("go").disabled = false;
+  }
 }
 
 function draw() {
-  const fromT = $("from").value ? new Date($("from").value + "T00:00:00").getTime() : 0;
-  const toT = $("to").value ? new Date($("to").value + "T23:59:59").getTime() : Infinity;
+  const fromT = $("from").value
+    ? new Date($("from").value + "T00:00:00").getTime()
+    : 0;
+  const toT = $("to").value
+    ? new Date($("to").value + "T23:59:59").getTime()
+    : Infinity;
   const brF = $("brSel").value;
-  const rows = DATA.rows.filter(r => { const x = new Date(r.t).getTime(); return x >= fromT && x <= toT && (!brF || r.branch === brF); });
 
-  const kp = $("kpis"); kp.replaceChildren();
-  const low = rows.filter(r => r.overall && r.overall <= 2).length;
-  [["متوسط التقييم", fmt(avg(rows, "overall")), ""], ["عدد التقييمات", rows.length, ""], ["تقييمات منخفضة", low, low ? "bad" : ""]].forEach(([l, v, c]) => {
-    const k = el("div", "kpi " + c); k.append(el("b", "", v), el("span", "", l)); kp.append(k);
+  const rows = DATA.rows.filter(r => {
+    const x = new Date(r.t).getTime();
+    return x >= fromT && x <= toT && (!brF || r.branch === brF);
   });
 
-  const cats = $("cats"); cats.replaceChildren();
-  CATS.forEach(([k, l]) => {
-    const a = avg(rows, k), r = el("div", "bar");
-    const t = el("div", "track"), f = el("div", "fill"); f.style.width = (a / 5 * 100) + "%"; t.append(f);
-    r.append(el("span", "", l), t, el("em", "", fmt(a))); cats.append(r);
+  const kp = $("kpis");
+  kp.replaceChildren();
+  const low = rows.filter(r => r.overall && r.overall <= 2).length;
+
+  [
+    ["متوسط التقييم", fmt(avg(rows, "overall")), ""],
+    ["عدد التقييمات", rows.length, ""],
+    ["تقييمات منخفضة", low, low ? "bad" : ""]
+  ].forEach(([label, value, cls]) => {
+    const k = el("div", "kpi " + cls);
+    k.append(el("b", "", value), el("span", "", label));
+    kp.append(k);
+  });
+
+  const cats = $("cats");
+  cats.replaceChildren();
+  CATS.forEach(([key, label]) => {
+    const a = avg(rows, key);
+    const r = el("div", "bar");
+    const t = el("div", "track");
+    const f = el("div", "fill");
+    f.style.width = (a / 5 * 100) + "%";
+    t.append(f);
+    r.append(el("span", "", label), t, el("em", "", fmt(a)));
+    cats.append(r);
   });
 
   $("brCard").hidden = DATA.scope !== "*";
   if (DATA.scope === "*") {
-    const t = $("br"); t.replaceChildren();
-    const h = el("tr"); ["الفرع", "التقييمات", "المتوسط", "منخفضة"].forEach(x => h.append(el("th", "", x))); t.append(h);
-    [...new Set(rows.map(r => r.branch))].sort().map(b => {
-      const rs = rows.filter(r => r.branch === b); return { b, n: rs.length, a: avg(rs, "overall"), l: rs.filter(r => r.overall && r.overall <= 2).length };
-    }).sort((x, y) => y.a - x.a).forEach(o => {
-      const tr = el("tr"); [o.b, o.n, fmt(o.a), o.l].forEach(x => tr.append(el("td", "", x))); t.append(tr);
-    });
+    const t = $("br");
+    t.replaceChildren();
+    const h = el("tr");
+    ["الفرع", "التقييمات", "المتوسط", "منخفضة"]
+      .forEach(x => h.append(el("th", "", x)));
+    t.append(h);
+
+    [...new Set(rows.map(r => r.branch))]
+      .sort()
+      .map(branch => {
+        const rs = rows.filter(r => r.branch === branch);
+        return {
+          branch,
+          count: rs.length,
+          average: avg(rs, "overall"),
+          low: rs.filter(r => r.overall && r.overall <= 2).length
+        };
+      })
+      .sort((a, b) => b.average - a.average)
+      .forEach(o => {
+        const tr = el("tr");
+        [o.branch, o.count, fmt(o.average), o.low]
+          .forEach(x => tr.append(el("td", "", x)));
+        t.append(tr);
+      });
   }
 
-  const list = $("list"); list.replaceChildren();
-  const items = rows.filter(r => r.comment || (r.overall && r.overall <= 2)).sort((a, b) => new Date(b.t) - new Date(a.t)).slice(0, 30);
-  if (!items.length) list.append(el("p", "empty", "مفيش ملاحظات في الفترة دي."));
+  const list = $("list");
+  list.replaceChildren();
+  const items = rows
+    .filter(r => r.comment || (r.overall && r.overall <= 2))
+    .sort((a, b) => new Date(b.t) - new Date(a.t))
+    .slice(0, 30);
+
+  if (!items.length) {
+    list.append(el("p", "empty", "مفيش ملاحظات في الفترة دي."));
+  }
+
   items.forEach(r => {
     const i = el("div", "item" + (r.overall <= 2 ? " low" : ""));
     const st = el("span", "st", "★".repeat(r.overall) + "☆".repeat(5 - r.overall));
-    const m = el("div", "meta", new Date(r.t).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" }) + " • " + r.branch + " • " + r.visit);
+    const m = el(
+      "div",
+      "meta",
+      new Date(r.t).toLocaleString("ar-EG", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      }) + " • " + r.branch + " • " + r.visit
+    );
+
     i.append(st, m);
     if (r.comment) i.append(el("div", "", r.comment));
+
     const who = [r.name, r.contact].filter(Boolean).join(" • ");
     if (who) i.append(el("div", "meta", "للتواصل: " + who));
+
     list.append(i);
   });
 }
 
-const ymd = d => new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
-const marks = on => document.querySelectorAll("#range .ghost").forEach(x => x.classList.toggle("on", on !== null && +x.dataset.n === on));
+const ymd = d =>
+  new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+
+const marks = on =>
+  document.querySelectorAll("#range .ghost").forEach(x =>
+    x.classList.toggle("on", on !== null && +x.dataset.n === on)
+  );
+
 function setRange(n) {
   const d = new Date();
-  $("to").value = ymd(d); $("from").value = ymd(new Date(d.getTime() - (n - 1) * 864e5));
-  marks(n); draw();
+  $("to").value = ymd(d);
+  $("from").value = ymd(new Date(d.getTime() - (n - 1) * 864e5));
+  marks(n);
+  draw();
 }
-[["اليوم", 1], ["آخر 7 أيام", 7], ["آخر 30 يوم", 30], ["آخر 90 يوم", 90], ["آخر سنة", 365]].forEach(([l, n]) => {
-  const b = el("button", "ghost", l); b.dataset.n = n; b.onclick = () => setRange(n); $("range").append(b);
-});
-["from", "to"].forEach(i => $(i).addEventListener("change", () => { marks(null); draw(); }));
+
+[["اليوم", 1], ["آخر 7 أيام", 7], ["آخر 30 يوم", 30], ["آخر 90 يوم", 90], ["آخر سنة", 365]]
+  .forEach(([label, n]) => {
+    const b = el("button", "ghost", label);
+    b.dataset.n = n;
+    b.onclick = () => setRange(n);
+    $("range").append(b);
+  });
+
+["from", "to"].forEach(id =>
+  $(id).addEventListener("change", () => {
+    marks(null);
+    draw();
+  })
+);
+
 $("brSel").addEventListener("change", draw);
 
-$("go").onclick = () => $("pin").value.trim() && load($("pin").value.trim());
-$("pin").addEventListener("keydown", e => { if (e.key === "Enter") $("go").click(); });
-$("out").onclick = () => { localStorage.removeItem("gf_pin"); location.reload(); };
-const saved = localStorage.getItem("gf_pin"); if (saved) load(saved);
+$("go").onclick = () => {
+  const pin = $("pin").value.trim();
+  if (pin) load(pin);
+};
+
+$("pin").addEventListener("keydown", e => {
+  if (e.key === "Enter") $("go").click();
+});
+
+$("out").onclick = () => {
+  localStorage.removeItem("gf_pin");
+  location.reload();
+};
+
+const saved = localStorage.getItem("gf_pin");
+if (saved) load(saved);
 </script>
 </body>
 </html>
